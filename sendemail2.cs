@@ -23,7 +23,8 @@ namespace Company.Function
 
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             dynamic data = JsonConvert.DeserializeObject(requestBody);
-            name = name ?? data?.name;
+            var defaultName = System.Environment.GetEnvironmentVariable("SENDGRID_APIKEY");
+            name = name ?? data?.name ?? defaultName;
 
             return name != null
                 ? (ActionResult)new OkObjectResult($"Hello, {name}")
