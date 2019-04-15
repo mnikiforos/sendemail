@@ -35,7 +35,7 @@ namespace Company.Function
                 From = new EmailAddress("test@chicagotailor.com", "Chicago Tailor"),
                 Subject = "Hello World from the SendGrid CSharp SDK!",
                 PlainTextContent = "Hello, Email!",
-                HtmlContent = $"<strong>Hello, {name}!</strong>"
+                HtmlContent = $"<strong>Hello, {name}! The time is: {DateTime.UtcNow.ToLongTimeString()}</strong>"
             };
             msg.AddTo(new EmailAddress("mnn414@gmail.com", "Test User"));
             var response = await client.SendEmailAsync(msg);
