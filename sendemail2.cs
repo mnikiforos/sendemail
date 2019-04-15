@@ -7,6 +7,8 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using SendGrid;
+using SendGrid.Helpers.Mail;
 
 namespace Company.Function
 {
@@ -25,6 +27,18 @@ namespace Company.Function
             dynamic data = JsonConvert.DeserializeObject(requestBody);
             var defaultName = System.Environment.GetEnvironmentVariable("SENDGRID_APIKEY");
             name = name ?? data?.name ?? defaultName;
+
+            var apiKey = System.Environment.GetEnvironmentVariable("SENDGRID_APIKEY");
+            var client = new SendGridClient(apiKey);
+            var msg = new SendGridMessage()
+            {
+                From = new EmailAddress("test@chicagotailor.com", "Chicago Tailor"),
+                Subject = "Hello World from the SendGrid CSharp SDK!",
+                PlainTextContent = "Hello, Email!",
+                HtmlContent = $"<strong>Hello, {name}!</strong>"
+            };
+            msg.AddTo(new EmailAddress("mnn414@gmail.com", "Test User"));
+            var response = await client.SendEmailAsync(msg);
 
             return name != null
                 ? (ActionResult)new OkObjectResult($"Hello, {name}")
