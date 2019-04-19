@@ -23,29 +23,40 @@ namespace Company.Function
         {
 
             log.LogInformation("C# HTTP trigger function processed a request.");
+            var logmsg = "";
 
-
+            var remoteIp = req.GetRemoteIPAddress();
             var body = await req.GetBodyAsync<CommentCard>();
             if (!(body?.IsValid ?? false))
-                return new BadRequestObjectResult($"Model is invalid: {string.Join(", ", body.ValidationResults.Select(s => s.ErrorMessage).ToArray())}");
+            {
+                logmsg = $"{{ \"modelerrors\": [{string.Join(", ", body.ValidationResults.Select(s => s.ErrorMessage.WrapInQuotes()).ToArray())}] , \"ipaddress\": {remoteIp.WrapInQuotes()}  }}";
+                log.LogInformation(logmsg);
+                return new BadRequestObjectResult(logmsg);
+            }
+
 
 
             var commentCard = body.Value;
-            var captchaResponse = await ReCaptchav2Processor.ValidateReponseCode(commentCard.responseCode, req.GetRemoteIPAddress(), log);
+            var captchaResponse = await ReCaptchav2Processor.ValidateReponseCode(commentCard.responseCode, remoteIp, log);
+            logmsg = $"{{ \"captcha\": {captchaResponse.ToJson()}, \"ipaddress\": {remoteIp.WrapInQuotes()}  }}";
+            log.LogInformation(logmsg);
 
 
-            if (captchaResponse == null || captchaResponse.ProcessCode == RecaptchaProcessCodes.Error)
-                return new BadRequestObjectResult($"Bad recaptcha request -- error: {captchaResponse.ErrorMessage}");
+            if (captchaResponse.ProcessCode != RecaptchaProcessCodes.Success)
+            {
+                return new BadRequestObjectResult(logmsg);
+                // if (captchaResponse == null || captchaResponse.ProcessCode == RecaptchaProcessCodes.Error)
+                //     return new BadRequestObjectResult($"Bad recaptcha request -- error: {captchaResponse.ErrorMessage}");
 
-            else if (captchaResponse.ProcessCode == RecaptchaProcessCodes.TimeoutOrDuplicate)
-                return new BadRequestObjectResult($"Bad recaptcha request --Timeout occurred. Please refresh page and try again.");
-            else if (captchaResponse.ProcessCode != RecaptchaProcessCodes.Success)
-                return new BadRequestObjectResult($"Bad recaptcha request other captcha error -- {string.Join(',', captchaResponse.errorcodes)}");
-
+                // else if (captchaResponse.ProcessCode == RecaptchaProcessCodes.TimeoutOrDuplicate)
+                //     return new BadRequestObjectResult($"Bad recaptcha request --Timeout occurred. Please refresh page and try again.");
+                // else
+                //     return new BadRequestObjectResult($"Bad recaptcha request other captcha error -- {string.Join(',', captchaResponse.errorcodes)}");
+            }
 
             var apiKey = System.Environment.GetEnvironmentVariable("SENDGRID_APIKEY");
             var client = new SendGridClient(apiKey);
-            var msg = new SendGridMessage()
+            var email = new SendGridMessage()
             {
                 From = new EmailAddress("test@chicagotailor.com", "Chicago Tailor"),
                 Subject = $"{commentCard.name} has a question/comment!",
@@ -53,12 +64,14 @@ namespace Company.Function
                 HtmlContent = $@"Hello,<br/><strong>{commentCard.name}</strong> has a question/comment:<br/>{commentCard.comment}.<br/><br/><br/>Below is contact info for {commentCard.name}.<br/>Emai: {commentCard.email}<br/>Phone: {commentCard.phone}<br/>",
                 ReplyTo = new EmailAddress(commentCard.email, commentCard.name)
             };
-            msg.AddTo(new EmailAddress("mnn414@gmail.com", "Test User"));
-            var response = await client.SendEmailAsync(msg);
+            email.AddTo(new EmailAddress("mnn414@gmail.com", "Test User"));
+            var emailResponse = await client.SendEmailAsync(email);
 
-            return response?.StatusCode == HttpStatusCode.Accepted ?
-                (ActionResult)new OkObjectResult($"Email sent") :
-                new BadRequestObjectResult("Bad request");
+            logmsg = $"{{ \"emailRepsonse\": {emailResponse.ToJson()}, \"ipaddress\": {remoteIp.WrapInQuotes()}  }}";
+            log.LogInformation(logmsg);
+            return emailResponse?.StatusCode == HttpStatusCode.Accepted ?
+                (ActionResult)new OkObjectResult("{ \"Status\": \"OK\"") :
+                new BadRequestObjectResult(logmsg);
 
         }
     }

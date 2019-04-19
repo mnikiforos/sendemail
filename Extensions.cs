@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
@@ -15,7 +15,7 @@ using System.Collections.Generic;
 
 namespace Company.Function
 {
-    public static class HttpRequestExtensions
+    public static class Extensions
     {
         public static async Task<HttpResponseBody<T>> GetBodyAsync<T>(this HttpRequest request)
         {
@@ -39,6 +39,16 @@ namespace Company.Function
         public static string GetRemoteIPAddress(this HttpRequest request)
         {
             return request.HttpContext.Connection.RemoteIpAddress.ToString();
+        }
+
+        public static string ToJson(this object instance)
+        {
+            return JsonConvert.SerializeObject(instance);
+        }
+
+        public static string WrapInQuotes(this string value)
+        {
+            return $"\"{value}\"";
         }
     }
 }
