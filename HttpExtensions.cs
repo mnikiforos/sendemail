@@ -35,5 +35,10 @@ namespace Company.Function
 
             return body;
         }
+
+        public static string GetRemoteIPAddress(this HttpRequest request)
+        {
+            return request.HttpContext.Connection.RemoteIpAddress.ToString();
+        }
     }
 }

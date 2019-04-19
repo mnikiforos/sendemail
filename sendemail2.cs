@@ -10,6 +10,7 @@ using SendGrid.Helpers.Mail;
 using System.Net;
 using System.Collections.Generic;
 using System.Linq;
+using Company.Function.ReCaptchav2;
 
 namespace Company.Function
 {
@@ -28,11 +29,22 @@ namespace Company.Function
             if (!(body?.IsValid ?? false))
                 return new BadRequestObjectResult($"Model is invalid: {string.Join(", ", body.ValidationResults.Select(s => s.ErrorMessage).ToArray())}");
 
+
             var commentCard = body.Value;
+            var captchaResponse = await ReCaptchav2Processor.ValidateReponseCode(commentCard.responseCode, req.GetRemoteIPAddress(), log);
+
+
+            if (captchaResponse == null || captchaResponse.ProcessCode == RecaptchaProcessCodes.Error)
+                return new BadRequestObjectResult($"Bad recaptcha request -- error: {captchaResponse.ErrorMessage}");
+
+            else if (captchaResponse.ProcessCode == RecaptchaProcessCodes.TimeoutOrDuplicate)
+                return new BadRequestObjectResult($"Bad recaptcha request --Timeout occurred. Please refresh page and try again.");
+            else if (captchaResponse.ProcessCode != RecaptchaProcessCodes.Success)
+                return new BadRequestObjectResult($"Bad recaptcha request other captcha error -- {string.Join(',', captchaResponse.errorcodes)}");
+
 
             var apiKey = System.Environment.GetEnvironmentVariable("SENDGRID_APIKEY");
             var client = new SendGridClient(apiKey);
-            //var cstTime = UtcToCst(DateTime.UtcNow).ToLongTimeString();
             var msg = new SendGridMessage()
             {
                 From = new EmailAddress("test@chicagotailor.com", "Chicago Tailor"),
@@ -49,10 +61,5 @@ namespace Company.Function
                 new BadRequestObjectResult("Bad request");
 
         }
-        // public static DateTime UtcToCst(DateTime timeUtc)
-        // {
-        //     TimeZoneInfo cstZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
-        //     return TimeZoneInfo.ConvertTimeFromUtc(timeUtc, cstZone);
-        // }
     }
 }
