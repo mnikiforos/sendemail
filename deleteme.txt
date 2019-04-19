@@ -1,1 +1,47 @@
-test
+var app = {
+    config: {
+        commentWordMin: 10,
+        commentWordMax: 50,
+        commentCharLimit: 500
+    },
+
+    isHtml: function (value) {
+        var re = /<[a-z][\s\S]*>/i;
+        return re.test(value);
+    },
+    isNameValid: function (value) {
+        var re = /^(?:\b\w+\b[\s\r\n]*){2,4}$/;
+        return !app.isHtml(value) &&
+            re.test(value) &&
+            value.length <= 70;
+    },
+
+    isCommentValid: function (value) {
+        var re = new RegExp(('^(?:\\b\\w+\\b[\\s\\r\\n]*){min,max}$')
+        .replace('min', app.config.commentWordMin)
+        .replace('max', app.config.commentWordMax))
+        return !app.isHtml(value) &&
+            re.test(value) &&
+            value.length <= app.config.commentCharLimit;
+    },
+
+
+    isPhoneValid: function (value) {
+        var re = /^(\([0-9]{3}\) |[0-9]{3}-)[0-9]{3}-[0-9]{4}$/;
+        if (!re.test(value)) {
+            return false;
+        } else {
+            return true;
+        }
+    },
+
+
+    // validates that the entry is formatted as an e-mail address
+    isEmailValid: function (value) {
+        var re = /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/;
+        if (!re.test(value) || value.length.length > 256) {
+            return false;
+        } else {
+            return true;
+        }
+    },

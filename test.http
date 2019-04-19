@@ -1,0 +1,9 @@
+POST http://localhost:7071/api/sendemail2 HTTP/1.1
+content-type: application/json
+
+{
+    "name": "sample",
+    "email": "jfgfgf@ghfgh.com",
+    "phone": "fsdgsgs",
+    "comment": "gsdg sgs "
+}

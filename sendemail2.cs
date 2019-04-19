@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -6,9 +5,11 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using SendGrid;
 using SendGrid.Helpers.Mail;
+using System.Net;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Company.Function
 {
@@ -16,33 +17,42 @@ namespace Company.Function
     {
         [FunctionName("sendemail2")]
         public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
+
             log.LogInformation("C# HTTP trigger function processed a request.");
 
-            string name = req.Query["name"];
 
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            var defaultName = System.Environment.GetEnvironmentVariable("default_name");
-            name = name ?? data?.name ?? defaultName;
+            var body = await req.GetBodyAsync<CommentCard>();
+            if (!(body?.IsValid ?? false))
+                return new BadRequestObjectResult($"Model is invalid: {string.Join(", ", body.ValidationResults.Select(s => s.ErrorMessage).ToArray())}");
+
+            var commentCard = body.Value;
 
             var apiKey = System.Environment.GetEnvironmentVariable("SENDGRID_APIKEY");
             var client = new SendGridClient(apiKey);
+            //var cstTime = UtcToCst(DateTime.UtcNow).ToLongTimeString();
             var msg = new SendGridMessage()
             {
                 From = new EmailAddress("test@chicagotailor.com", "Chicago Tailor"),
-                Subject = "Hello World from the SendGrid CSharp SDK!",
+                Subject = $"{commentCard.name} has a question/comment!",
                 PlainTextContent = "Hello, Email!",
-                HtmlContent = $"<strong>Hello, {name}! The time is: {DateTime.UtcNow.ToLongTimeString()}</strong>"
+                HtmlContent = $@"Hello,<br/><strong>{commentCard.name}</strong> has a question/comment:<br/>{commentCard.comment}.<br/><br/><br/>Below is contact info for {commentCard.name}.<br/>Emai: {commentCard.email}<br/>Phone: {commentCard.phone}<br/>",
+                ReplyTo = new EmailAddress(commentCard.email, commentCard.name)
             };
             msg.AddTo(new EmailAddress("mnn414@gmail.com", "Test User"));
             var response = await client.SendEmailAsync(msg);
 
-            return name != null
-                ? (ActionResult)new OkObjectResult($"Hello, {name}")
-                : new BadRequestObjectResult("Please pass a name on the query string or in the request body");
+            return response?.StatusCode == HttpStatusCode.Accepted ?
+                (ActionResult)new OkObjectResult($"Email sent") :
+                new BadRequestObjectResult("Bad request");
+
         }
+        // public static DateTime UtcToCst(DateTime timeUtc)
+        // {
+        //     TimeZoneInfo cstZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+        //     return TimeZoneInfo.ConvertTimeFromUtc(timeUtc, cstZone);
+        // }
     }
 }
